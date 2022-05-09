@@ -6,7 +6,7 @@ import {
 } from '@graphprotocol/graph-ts'
 
 import {
-  createEventID, concat, EMPTY_ADDRESS
+  createEventID, concat, ROOT_NODE, EMPTY_ADDRESS
 } from './utils'
 
 // Import event types from the registry contract ABI
@@ -24,7 +24,7 @@ const BIG_INT_ZERO = BigInt.fromI32(0)
 
 function createDomain(node: string, timestamp: BigInt): Domain {
   let domain = new Domain(node)
-  if(node) {
+  if(node == ROOT_NODE) {
     domain = new Domain(node)
     domain.owner = EMPTY_ADDRESS
     domain.isMigrated = true
@@ -36,7 +36,7 @@ function createDomain(node: string, timestamp: BigInt): Domain {
 
 function getDomain(node: string, timestamp: BigInt = BIG_INT_ZERO): Domain {
   let domain = Domain.load(node)
-  if(domain == null) {
+  if(domain == null && node == ROOT_NODE) {
     return createDomain(node, timestamp)
   }
   return domain
@@ -156,7 +156,7 @@ export function handleNewOwner(event: NewOwnerEvent): void {
 
 export function handleNewOwnerOldRegistry(event: NewOwnerEvent): void {
   let subnode = crypto.keccak256(concat(event.params.node, event.params.label)).toHexString()
-  let domain = getDomain(subnode)
+  let domain = getDomain(subnode, event.block.timestamp)
 
   if(domain == null || domain.isMigrated == false){
     _handleNewOwner(event, false)
@@ -166,7 +166,7 @@ export function handleNewOwnerOldRegistry(event: NewOwnerEvent): void {
 export function handleNewResolverOldRegistry(event: NewResolverEvent): void {
   let node = event.params.node.toHexString()
   let domain = getDomain(node, event.block.timestamp)
-  if(node || !domain.isMigrated){
+  if(node == ROOT_NODE || !domain.isMigrated){
     handleNewResolver(event)
   }
 }
